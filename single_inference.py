@@ -146,7 +146,7 @@ class CustomCosyVoiceFrontEnd(CosyVoiceFrontEnd):
                        'llm_embedding': embedding, 'flow_embedding': flow_embedding}
         return model_input
     
-    def frontend_customized(self, tts_text, spk_id):
+    def frontend_cached(self, tts_text, spk_id):
         tts_text_token, tts_text_token_len = self._extract_text_token(tts_text)
         prompt_text_token = self.spk2info[spk_id]['prompt_text_token']
         prompt_text_token_len = self.spk2info[spk_id]['prompt_text_token_len']
@@ -289,7 +289,7 @@ class CustomCosyVoice:
             if not len(i):
                 continue
             print("Synthesizing:",i)
-            model_input = self.frontend.frontend_customized(i, spk_id)
+            model_input = self.frontend.frontend_cached(i, spk_id)
             model_output = self.model.inference(**model_input)
             yield model_output
 
@@ -332,13 +332,13 @@ class CustomCosyVoice:
             tts_speeches.append(model_output['tts_speech'])
         return {'tts_speech': torch.concat(tts_speeches, dim=1)}
     
-    def inference_customized(self, tts_text, spk_id):
+    def inference_cached(self, tts_text, spk_id):
         tts_speeches = []
         for i in re.split(r'(?<=[？！。.?!])\s*', tts_text):
             if not len(i):
                 continue
             print("Synthesizing:",i)
-            model_input = self.frontend.frontend_customized(i, spk_id)
+            model_input = self.frontend.frontend_cached(i, spk_id)
             model_output = self.model.inference(**model_input)
             tts_speeches.append(model_output['tts_speech'])
         return {'tts_speech': torch.concat(tts_speeches, dim=1)}
@@ -454,7 +454,7 @@ def single_inference(speaker_prompt_audio_path, content_to_synthesize, output_pa
     torchaudio.save(output_path, output['tts_speech'], 22050)
     print(f"Generated voice saved to {output_path}")
 
-def inference_customized(content_to_synthesize, output_path, cosyvoice, bopomofo_converter, spk_id):
+def inference_cached(content_to_synthesize, output_path, cosyvoice, bopomofo_converter, spk_id):
     content_to_synthesize = content_to_synthesize
     output_path = output_path.strip()
     
@@ -468,7 +468,7 @@ def inference_customized(content_to_synthesize, output_path, cosyvoice, bopomofo
     content_to_synthesize_bopomo = get_bopomofo_rare(content_to_synthesize, bopomofo_converter)
     print("Content to be synthesized:",content_to_synthesize)
     start = time.time()
-    output = cosyvoice.inference_customized(content_to_synthesize_bopomo, spk_id)
+    output = cosyvoice.inference_cached(content_to_synthesize_bopomo, spk_id)
     end = time.time()
     print("Elapsed time:",end - start)
     print("Generated audio length:", output['tts_speech'].shape[1]/22050, "seconds")
@@ -497,12 +497,12 @@ def main():
     output_path = args.output_path.strip()
     single_inference(speaker_prompt_audio_path, content_to_synthesize, output_path, cosyvoice, bopomofo_converter, args.speaker_prompt_text_transcription)
 
-def main_customized():
+def main_cached():
     ####args
     parser = argparse.ArgumentParser(description="Run BreezyVoice text-to-speech with custom inputs")
     parser.add_argument("--content_to_synthesize", type=str, required=True, help="Specifies the content that will be synthesized into speech.")
     parser.add_argument("--output_path", type=str, required=False, default="results/output.wav", help="Specifies the name and path for the output .wav file.")
-    parser.add_argument("--model_path", type=str, required=False, default = "models",help="Specifies the model used for speech synthesis.")
+    parser.add_argument("--model_path", type=str, required=False, default = "MediaTek-Research/BreezyVoice-300M",help="Specifies the model used for speech synthesis.")
     parser.add_argument("--spk_id", type=str, required=False, default = "test_human",help="spk's name")
     args = parser.parse_args()
     
@@ -514,7 +514,7 @@ def main_customized():
     content_to_synthesize = args.content_to_synthesize
     spk_id = args.spk_id
     output_path = args.output_path.strip()
-    inference_customized(content_to_synthesize, output_path, cosyvoice, bopomofo_converter, spk_id)
+    inference_cached(content_to_synthesize, output_path, cosyvoice, bopomofo_converter, spk_id)
 
 def add_spk():
     ####args
@@ -522,7 +522,7 @@ def add_spk():
     parser.add_argument("--speaker_prompt_audio_path", type=str, required=True, help="Specifies the path to the prompt speech audio file of the speaker.")
     parser.add_argument("--speaker_prompt_text_transcription", type=str, required=False, help="Specifies the transcription of the speaker prompt audio (Highly Recommended, if not provided, the system will fall back to transcribing with Whisper.)")
     
-    parser.add_argument("--model_path", type=str, required=False, default = "models",help="Specifies the model used for speech synthesis.")
+    parser.add_argument("--model_path", type=str, required=False, default = "MediaTek-Research/BreezyVoice-300M",help="Specifies the model used for speech synthesis.")
     parser.add_argument("--spk_id", type=str, required=False, default = "test_human",help="spk's name")
     args = parser.parse_args()
     speaker_prompt_audio_path = args.speaker_prompt_audio_path
